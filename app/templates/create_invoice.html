@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto mt-10 bg-white p-8 rounded-lg shadow-lg">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">Create New Invoice</h2>
+
+    <div id="item-data-store" style="display:none;">
+        {% for i in items %}
+        <div data-id="{{ i.id }}" data-name="{{ i.name }}" data-price="{{ i.price }}"></div>
+        {% endfor %}
+    </div>
+    
+    <form id="invoiceForm">
+        <div class="grid grid-cols-2 gap-6 mb-8">
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">Customer</label>
+                <select id="customer_id" class="w-full border p-2 rounded" required>
+                    <option value="">-- Select Customer --</option>
+                    {% for c in customers %}
+                    <option value="{{ c.id }}" {% if prefill_customer_id and c.id == prefill_customer_id %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-gray-700 font-bold mb-2">Tax Type</label>
+                    <select id="tax_type" class="w-full border p-2 rounded">
+                        <option value="GST" {% if prefill_tax_type == 'GST' %}selected{% endif %}>GST</option>
+                        <option value="IGST" {% if prefill_tax_type == 'IGST' %}selected{% endif %}>IGST</option>
+                        <option value="CGST+SGST" {% if prefill_tax_type == 'CGST+SGST' %}selected{% endif %}>CGST+SGST</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-gray-700 font-bold mb-2">Tax Rate (%)</label>
+                    <input type="number" id="tax_rate" value="{{ prefill_tax_rate if prefill_tax_rate else 18 }}" class="w-full border p-2 rounded" onchange="calculateTotal()">
+                </div>
+            </div>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-4 text-gray-700">Items</h3>
+        <table class="w-full mb-6">
+            <thead>
+                <tr class="bg-gray-100 text-left">
+                    <th class="p-3">Item</th>
+                    <th class="p-3 w-24">Price</th>
+                    <th class="p-3 w-24">Qty</th>
+                    <th class="p-3 w-32">Total</th>
+                    <th class="p-3 w-10"></th>
+                </tr>
+            </thead>
+            <tbody id="items-body"></tbody>
+        </table>
+
+        <div class="relative mb-8">
+            <button type="button" id="add-item-btn" onclick="togglePicker(event)"
+                class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded">
+                + Add Item
+            </button>
+            <div id="item-picker" class="hidden absolute left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-20 w-72">
+                <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b bg-gray-50 rounded-t-lg">
+                    Select an item
+                </div>
+                <div id="picker-list" class="max-h-60 overflow-y-auto"></div>
+            </div>
+        </div>
+
+        <div class="flex justify-end">
+            <div class="w-64">
+                <div class="flex justify-between mb-2">
+                    <span>Subtotal:</span>
+                    <span id="display-subtotal" class="font-bold">₹0.00</span>
+                </div>
+                <div class="flex justify-between mb-2 text-red-600">
+                    <span>Tax:</span>
+                    <span id="display-tax" class="font-bold">₹0.00</span>
+                </div>
+                <div class="flex justify-between border-t pt-2 text-xl">
+                    <span>Total:</span>
+                    <span id="display-total" class="font-bold">₹0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <label class="block text-gray-700 font-bold mb-2">Notes / Payment Terms</label>
+            <textarea id="notes" rows="2" placeholder="e.g. Payment due within 30 days. Bank: HDFC xxxx"
+                class="w-full border p-2 rounded text-sm text-gray-600"></textarea>
+        </div>
+
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded mt-8">
+            Generate Invoice
+        </button>
+    </form>
+</div>
+
+<script>
+    const availableItems = [];
+    document.querySelectorAll('#item-data-store div').forEach(div => {
+        availableItems.push({
+            id: div.getAttribute('data-id'),
+            name: div.getAttribute('data-name'),
+            price: parseFloat(div.getAttribute('data-price'))
+        });
+    });
+
+    // Build the picker list once
+    const pickerList = document.getElementById('picker-list');
+    if (availableItems.length === 0) {
+        pickerList.innerHTML = '<div class="px-3 py-4 text-sm text-gray-400 text-center">No items found. Add items first.</div>';
+    } else {
+        availableItems.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'flex justify-between items-center px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0';
+            div.innerHTML = `<span class="text-sm font-medium text-gray-800">${item.name}</span><span class="text-xs text-gray-500 ml-2">₹${item.price.toFixed(2)}</span>`;
+            div.addEventListener('click', () => {
+                addItemRow(item);
+                closePicker();
+            });
+            pickerList.appendChild(div);
+        });
+    }
+
+    function togglePicker(e) {
+        e.stopPropagation();
+        document.getElementById('item-picker').classList.toggle('hidden');
+    }
+
+    function closePicker() {
+        document.getElementById('item-picker').classList.add('hidden');
+    }
+
+    document.addEventListener('click', function(e) {
+        const picker = document.getElementById('item-picker');
+        const btn = document.getElementById('add-item-btn');
+        if (!picker.contains(e.target) && e.target !== btn) {
+            closePicker();
+        }
+    });
+
+    function addItemRow(item) {
+        const tbody = document.getElementById('items-body');
+        const row = document.createElement('tr');
+        row.className = "border-b";
+        row.innerHTML = `
+            <td class="p-2">
+                <span class="text-sm font-medium text-gray-800">${item.name}</span>
+                <input type="hidden" class="item-select" value="${item.id}">
+            </td>
+            <td class="p-2">
+                <input type="text" class="price-display w-full bg-gray-50 border p-1 rounded text-sm text-center" value="${item.price.toFixed(2)}" disabled>
+            </td>
+            <td class="p-2">
+                <input type="number" class="qty-input w-full border p-1 rounded text-sm" value="1" min="1" onchange="calculateTotal()">
+            </td>
+            <td class="p-2 font-bold row-total text-sm">₹${item.price.toFixed(2)}</td>
+            <td class="p-2 text-red-500 cursor-pointer font-bold text-lg leading-none" onclick="deleteRow(this)">×</td>
+        `;
+        tbody.appendChild(row);
+        calculateTotal();
+    }
+
+    function deleteRow(btn) {
+        btn.parentElement.remove();
+        calculateTotal();
+    }
+
+    function calculateTotal() {
+        let subtotal = 0;
+        document.querySelectorAll('#items-body tr').forEach(row => {
+            const price = parseFloat(row.querySelector('.price-display').value);
+            const qty = parseInt(row.querySelector('.qty-input').value) || 0;
+            const lineTotal = price * qty;
+            row.querySelector('.row-total').innerText = "₹" + lineTotal.toFixed(2);
+            subtotal += lineTotal;
+        });
+
+        const taxRate = parseFloat(document.getElementById('tax_rate').value) || 0;
+        const taxAmount = subtotal * (taxRate / 100);
+        const finalTotal = subtotal + taxAmount;
+
+        document.getElementById('display-subtotal').innerText = "₹" + subtotal.toFixed(2);
+        document.getElementById('display-tax').innerText = "₹" + taxAmount.toFixed(2);
+        document.getElementById('display-total').innerText = "₹" + finalTotal.toFixed(2);
+    }
+
+    document.getElementById('invoiceForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const items = [];
+        document.querySelectorAll('#items-body tr').forEach(row => {
+            items.push({
+                item_id: row.querySelector('.item-select').value,
+                quantity: row.querySelector('.qty-input').value
+            });
+        });
+
+        if (items.length === 0) {
+            alert("Please add at least one item.");
+            return;
+        }
+
+        const dataToSend = {
+            customer_id: document.getElementById('customer_id').value,
+            tax_type: document.getElementById('tax_type').value,
+            tax_rate: document.getElementById('tax_rate').value,
+            notes: document.getElementById('notes').value,
+            items: items
+        };
+
+        const response = await fetch('/api/invoices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dataToSend)
+        });
+
+        if (response.ok) {
+            alert("Draft Invoice Saved");
+            window.location.href = "/invoices";
+        } else {
+            alert("Error saving invoice. Check the console.");
+        }
+    });
+
+    const prefillItems = [
+        {% if prefill_items %}
+            {% for li in prefill_items %}
+            { name: "{{ li.item_name }}", price: {{ li.item_price }}, qty: {{ li.quantity }} },
+            {% endfor %}
+        {% endif %}
+    ];
+
+    window.onload = function() {
+        prefillItems.forEach(li => {
+            const found = availableItems.find(a => a.name === li.name);
+            if (found) {
+                addItemRow(found);
+                const rows = document.querySelectorAll('#items-body tr');
+                rows[rows.length - 1].querySelector('.qty-input').value = li.qty;
+                calculateTotal();
+            }
+        });
+    };
+</script>
+{% endblock %}

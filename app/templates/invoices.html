@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mt-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Invoices</h1>
+        <a href="/invoices/new"
+            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow transition">
+            + New Invoice
+        </a>
+    </div>
+
+    <div class="flex gap-3 mb-4">
+        <input id="searchInput" type="text" placeholder="Search by customer, status, ARN…"
+            class="border rounded px-3 py-2 text-sm w-full max-w-sm"
+            oninput="filterTable()">
+        <select id="statusFilter" class="border rounded px-3 py-2 text-sm" onchange="filterTable()">
+            <option value="">All statuses</option>
+            <option value="draft">Draft</option>
+            <option value="finalized">Finalized</option>
+        </select>
+    </div>
+
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full leading-normal" id="invoiceTable">
+            <thead>
+                <tr>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-50 text-left text-xs font-semibold text-gray-600 uppercase">ID</th>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-50 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-50 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-50 text-left text-xs font-semibold text-gray-600 uppercase">ARN</th>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-50 text-left text-xs font-semibold text-gray-600 uppercase">Customer</th>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-50 text-left text-xs font-semibold text-gray-600 uppercase">Total</th>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-50 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for invoice in invoices %}
+                <tr>
+                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                        <a href="/invoices/{{ invoice.id }}" class="font-bold text-blue-600 hover:underline">#{{ invoice.id }}</a>
+                    </td>
+                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                        <span class="text-gray-700">{{ invoice.date }}</span>
+                    </td>
+                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                        {% if invoice.status == 'Finalized' %}
+                        <span class="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded border border-green-200">
+                            Finalized
+                        </span>
+                        {% else %}
+                        <span class="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-1 rounded border border-yellow-200">
+                            Draft
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-gray-500 font-mono text-xs">
+                        {{ invoice.arn or '—' }}
+                    </td>
+                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                        {{ invoice.customer.name }}
+                    </td>
+                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm font-semibold">
+                        ₹{{ invoice.total_amount }}
+                    </td>
+                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                        <div class="flex space-x-2">
+                            <a href="/api/invoices/{{ invoice.id }}/pdf" target="_blank"
+                                class="bg-gray-50 text-gray-600 px-3 py-1 rounded text-xs font-bold border border-gray-200 hover:bg-gray-200">
+                                PDF
+                            </a>
+                            {% if invoice.status != 'Finalized' %}
+                            <button onclick="openFinalizeModal({{ invoice.id }})"
+                                class="bg-green-50 text-green-600 px-3 py-1 rounded text-xs font-bold border border-green-200 hover:bg-green-100">
+                                Finalize
+                            </button>
+                            <button onclick="openDeleteModal({{ invoice.id }})"
+                                class="text-red-500 hover:text-red-700 font-bold px-2 text-lg leading-none">
+                                ×
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if total_pages > 1 %}
+<div class="flex justify-center items-center space-x-2 mt-6">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}" class="px-3 py-1 border rounded text-sm hover:bg-gray-100">← Prev</a>
+    {% endif %}
+    <span class="text-sm text-gray-600">Page {{ page }} of {{ total_pages }}</span>
+    {% if page < total_pages %}
+    <a href="?page={{ page + 1 }}" class="px-3 py-1 border rounded text-sm hover:bg-gray-100">Next →</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Finalize confirmation modal -->
+<div id="finalizeModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl p-6 w-80">
+        <h3 class="text-lg font-semibold text-gray-800 mb-2">Finalize Invoice</h3>
+        <p class="text-sm text-gray-600 mb-6">This will generate an ARN and lock the invoice. Continue?</p>
+        <div class="flex space-x-3">
+            <button onclick="confirmFinalize()"
+                class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded">
+                Yes, Finalize
+            </button>
+            <button onclick="closeFinalizeModal()"
+                class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 rounded">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete confirmation modal -->
+<div id="deleteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl p-6 w-80">
+        <h3 class="text-lg font-semibold text-gray-800 mb-2">Delete Invoice</h3>
+        <p class="text-sm text-gray-600 mb-6">Are you sure you want to delete this invoice? This cannot be undone.</p>
+        <div class="flex space-x-3">
+            <button onclick="confirmDelete()"
+                class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded">
+                Yes, Delete
+            </button>
+            <button onclick="closeDeleteModal()"
+                class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 rounded">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function filterTable() {
+        const q = document.getElementById('searchInput').value.toLowerCase();
+        const status = document.getElementById('statusFilter').value.toLowerCase();
+        document.querySelectorAll('#invoiceTable tbody tr').forEach(row => {
+            const text = row.innerText.toLowerCase();
+            const matchesQ = !q || text.includes(q);
+            const matchesStatus = !status || text.includes(status);
+            row.style.display = matchesQ && matchesStatus ? '' : 'none';
+        });
+    }
+
+    let pendingInvoiceId = null;
+
+    function openFinalizeModal(id) {
+        pendingInvoiceId = id;
+        document.getElementById('finalizeModal').classList.remove('hidden');
+    }
+    function closeFinalizeModal() {
+        pendingInvoiceId = null;
+        document.getElementById('finalizeModal').classList.add('hidden');
+    }
+    async function confirmFinalize() {
+        const res = await fetch(`/api/invoices/${pendingInvoiceId}/finalize`, { method: 'POST' });
+        closeFinalizeModal();
+        if (res.ok) {
+            window.location.reload();
+        } else {
+            alert("Finalization failed. Try again.");
+        }
+    }
+
+    function openDeleteModal(id) {
+        pendingInvoiceId = id;
+        document.getElementById('deleteModal').classList.remove('hidden');
+    }
+    function closeDeleteModal() {
+        pendingInvoiceId = null;
+        document.getElementById('deleteModal').classList.add('hidden');
+    }
+    async function confirmDelete() {
+        const res = await fetch(`/api/invoices/${pendingInvoiceId}`, { method: 'DELETE' });
+        closeDeleteModal();
+        if (res.ok) {
+            window.location.reload();
+        } else {
+            alert("Error deleting invoice.");
+        }
+    }
+</script>
+{% endblock %}

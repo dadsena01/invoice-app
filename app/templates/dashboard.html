@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mt-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-8">Dashboard</h1>
+
+    <!-- Stat cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
+        <div class="bg-white rounded-lg shadow p-6">
+            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Total Revenue</p>
+            <p class="text-2xl font-bold text-green-600">₹{{ "%.0f"|format(total_revenue) }}</p>
+            <p class="text-xs text-gray-400 mt-1">from finalized invoices</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Total Invoices</p>
+            <p class="text-2xl font-bold text-gray-800">{{ total_invoices }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ finalized_count }} finalized · {{ draft_count }} draft</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Customers</p>
+            <p class="text-2xl font-bold text-blue-600">{{ total_customers }}</p>
+            <p class="text-xs text-gray-400 mt-1"><a href="/customers" class="hover:underline">manage →</a></p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Drafts Pending</p>
+            <p class="text-2xl font-bold text-yellow-500">{{ draft_count }}</p>
+            <p class="text-xs text-gray-400 mt-1">awaiting finalization</p>
+        </div>
+    </div>
+
+    <!-- Recent invoices -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-700">Recent Invoices</h2>
+            <a href="/invoices" class="text-sm text-blue-600 hover:underline">View all →</a>
+        </div>
+        <table class="min-w-full leading-normal">
+            <thead>
+                <tr>
+                    <th class="px-5 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-600 uppercase">ID</th>
+                    <th class="px-5 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-600 uppercase">Customer</th>
+                    <th class="px-5 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
+                    <th class="px-5 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                    <th class="px-5 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-600 uppercase">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for invoice in recent_invoices %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-5 py-4 border-b border-gray-200 text-sm font-bold text-gray-700">#{{ invoice.id }}</td>
+                    <td class="px-5 py-4 border-b border-gray-200 text-sm">{{ invoice.customer.name }}</td>
+                    <td class="px-5 py-4 border-b border-gray-200 text-sm text-gray-500">{{ invoice.date }}</td>
+                    <td class="px-5 py-4 border-b border-gray-200 text-sm">
+                        {% if invoice.status == 'Finalized' %}
+                        <span class="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded border border-green-200">Finalized</span>
+                        {% else %}
+                        <span class="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-1 rounded border border-yellow-200">Draft</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-4 border-b border-gray-200 text-sm font-semibold">₹{{ invoice.total_amount }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="px-5 py-8 text-center text-gray-400 text-sm">No invoices yet. <a href="/invoices/new" class="text-blue-600 hover:underline">Create one →</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

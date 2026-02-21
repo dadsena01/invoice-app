@@ -1,19 +1,10 @@
-from app.models import User
-from app.models import db, User, initialize_db
+from werkzeug.security import generate_password_hash
+from app.models import initialize_db, User
 
-print("1. Creating database tables...")
 initialize_db()
-print("2. Creating Admin user...")
 
 try:
-    User.create(
-        name="Admin", 
-        email="admin@example.com", 
-        password="password123"
-    )
-    print("✅ SUCCESS: User 'admin@example.com' created")
-except Exception as e:
-    if "UNIQUE constraint failed" in str(e):
-        print(" User already exists.")
-    else:
-        print(f"ERROR: {e}")
+    User.create(name="Admin", email="admin@example.com", password=generate_password_hash("password123"))
+    print("User created")
+except:
+    print("User already exists")

@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_login import login_user, logout_user, login_required
+from werkzeug.security import check_password_hash
 from app.models import User
 
 auth = Blueprint('auth', __name__)
@@ -9,10 +10,10 @@ def login():
     data = request.get_json()
     email = data.get('email')
     password = data.get('password')
-    
+
     try:
         user = User.get(User.email == email)
-        if user.password == password:
+        if check_password_hash(user.password, password):
             login_user(user)
             return jsonify({'message': 'Logged in successfully'}), 200
         else:
