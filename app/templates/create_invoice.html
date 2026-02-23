@@ -1,195 +1,203 @@
-{% extends "base.html" %}
-
-{% block content %}
+{% extends "base.html" %} {% block content %}
 <div class="max-w-4xl mx-auto mt-10 bg-white p-8 rounded-lg shadow-lg">
-    <h2 class="text-2xl font-bold mb-6 text-gray-800">Create New Invoice</h2>
+  <h2 class="text-2xl font-bold mb-6 text-gray-800">Create New Invoice</h2>
 
-    <div id="item-data-store" style="display:none;">
-        {% for i in items %}
-        <div data-id="{{ i.id }}" data-name="{{ i.name }}" data-price="{{ i.price }}"></div>
-        {% endfor %}
+  <form id="invoiceForm">
+    <div class="grid grid-cols-2 gap-6 mb-8">
+      <div>
+        <label class="block text-gray-700 font-bold mb-2">Customer</label>
+        <select id="customer_id" class="w-full border p-2 rounded" required>
+          <option value="" disabled selected>Select Customer</option>
+          {% for c in customers %}
+          <option value="{{ c.id }}">{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Tax Type</label>
+          <input
+            type="text"
+            id="tax_type"
+            value="GST"
+            class="w-full border p-2 rounded"
+          />
+        </div>
+        <div>
+          <label class="block text-gray-700 font-bold mb-2">Tax Rate (%)</label>
+          <input
+            type="number"
+            id="tax_rate"
+            value="18"
+            class="w-full border p-2 rounded"
+            onchange="calculateTotal()"
+          />
+        </div>
+      </div>
     </div>
-    
-    <form id="invoiceForm">
-        <div class="grid grid-cols-2 gap-6 mb-8">
-            <div>
-                <label class="block text-gray-700 font-bold mb-2">Customer</label>
-                <select id="customer_id" class="w-full border p-2 rounded">
-                    {% for c in customers %}
-                    <option value="{{ c.id }}">{{ c.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="block text-gray-700 font-bold mb-2">Tax Type</label>
-                    <input type="text" id="tax_type" value="GST" class="w-full border p-2 rounded">
-                </div>
-                <div>
-                    <label class="block text-gray-700 font-bold mb-2">Tax Rate (%)</label>
-                    <input type="number" id="tax_rate" value="18" class="w-full border p-2 rounded" onchange="calculateTotal()">
-                </div>
-            </div>
+
+    <h3 class="text-xl font-semibold mb-4 text-gray-700">Items</h3>
+    <table class="w-full mb-4">
+      <thead>
+        <tr class="bg-gray-100 text-left">
+          <th class="p-3">Item</th>
+          <th class="p-3 w-32">Price</th>
+          <th class="p-3 w-24">Qty</th>
+          <th class="p-3 w-32">Total</th>
+          <th class="p-3 w-10"></th>
+        </tr>
+      </thead>
+      <tbody id="items-body"></tbody>
+    </table>
+
+    <div class="mb-8">
+      <select
+        id="item-adder"
+        onchange="addSelectedItem()"
+        class="bg-gray-100 border-black-300 text-gray-800 font-bold px-4 py-2 rounded cursor-pointer hover:bg-gray-200"
+      >
+        <option value="" disabled selected>+ Add Item</option>
+        {% for i in items %}
+        <option
+          value="{{ i.id }}"
+          data-name="{{ i.name }}"
+          data-price="{{ i.price }}"
+        >
+          {{ i.name }} - ₹{{ i.price }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="flex justify-end">
+      <div class="w-64">
+        <div class="flex justify-between mb-2">
+          <span>Subtotal:</span>
+          <span id="display-subtotal" class="font-bold">₹0.00</span>
         </div>
-
-        <h3 class="text-xl font-semibold mb-4 text-gray-700">Items</h3>
-        <table class="w-full mb-6">
-            <thead>
-                <tr class="bg-gray-100 text-left">
-                    <th class="p-3">Item</th>
-                    <th class="p-3 w-24">Price</th>
-                    <th class="p-3 w-24">Qty</th>
-                    <th class="p-3 w-32">Total</th>
-                    <th class="p-3 w-10"></th>
-                </tr>
-            </thead>
-            <tbody id="items-body"></tbody>
-        </table>
-
-        <button type="button" onclick="addItemRow()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded mb-8">
-            + Add Item
-        </button>
-
-        <div class="flex justify-end">
-            <div class="w-64">
-                <div class="flex justify-between mb-2">
-                    <span>Subtotal:</span>
-                    <span id="display-subtotal" class="font-bold">₹0.00</span>
-                </div>
-                <div class="flex justify-between mb-2 text-red-600">
-                    <span>Tax:</span>
-                    <span id="display-tax" class="font-bold">₹0.00</span>
-                </div>
-                <div class="flex justify-between border-t pt-2 text-xl">
-                    <span>Total:</span>
-                    <span id="display-total" class="font-bold">₹0.00</span>
-                </div>
-            </div>
+        <div class="flex justify-between mb-2 text-red-600">
+          <span>Tax:</span>
+          <span id="display-tax" class="font-bold">₹0.00</span>
         </div>
+        <div class="flex justify-between border-t pt-2 text-xl">
+          <span>Total:</span>
+          <span id="display-total" class="font-bold">₹0.00</span>
+        </div>
+      </div>
+    </div>
 
-        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded mt-8">
-            Generate Invoice
-        </button>
-    </form>
+    <button
+      type="submit"
+      class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded mt-8"
+    >
+      Save Draft Invoice
+    </button>
+  </form>
 </div>
 
 <script>
-    const availableItems = [];
-    const divs = document.querySelectorAll('#item-data-store div');
-    
-    divs.forEach(div => {
-        availableItems.push({
-            id: div.getAttribute('data-id'),
-            name: div.getAttribute('data-name'),
-            price: parseFloat(div.getAttribute('data-price'))
-        });
-    });
+  function addSelectedItem() {
+    const select = document.getElementById("item-adder");
+    const selectedOption = select.options[select.selectedIndex];
 
-    function addItemRow() {
-        if (availableItems.length === 0) {
-            alert("No items to add!");
-            return;
-        }
+    const id = selectedOption.value;
+    const name = selectedOption.getAttribute("data-name");
+    const price = parseFloat(selectedOption.getAttribute("data-price"));
 
-        const tbody = document.getElementById('items-body');
-        const row = document.createElement('tr');
-        row.className = "border-b";
-        
-        let options = "";
-        for (let i = 0; i < availableItems.length; i++) {
-            let item = availableItems[i];
-            options += `<option value="${item.id}" data-price="${item.price}">${item.name}</option>`;
-        }
-        
-        row.innerHTML = `
+    const tbody = document.getElementById("items-body");
+    const row = document.createElement("tr");
+    row.className = "border-b";
+
+    row.innerHTML = `
             <td class="p-2">
-                <select class="item-select w-full border p-1 rounded" onchange="updatePrice(this)">
-                    ${options}
-                </select>
+                <input type="hidden" class="item-id-input" value="${id}">
+                <span class="font-medium text-gray-800">${name}</span>
             </td>
             <td class="p-2">
-                <input type="text" class="price-display w-full bg-gray-50" value="${availableItems[0].price}" disabled>
+                <input type="text" class="price-display w-full bg-transparent border-0" value="${price}" readonly>
             </td>
             <td class="p-2">
-                <input type="number" class="qty-input w-full border p-1" value="1" min="1" onchange="calculateTotal()">
+                <input type="number" class="qty-input w-full border p-1 rounded" value="1" min="1" onchange="calculateTotal()">
             </td>
-            <td class="p-2 font-bold row-total">₹${availableItems[0].price}</td>
-            <td class="p-2 text-red-500 cursor-pointer font-bold" onclick="deleteRow(this)">x</td>
+            <td class="p-2 font-bold row-total text-gray-800">₹${price}</td>
+            <td class="p-2 text-red-500 cursor-pointer font-bold text-lg hover:text-red-700" onclick="deleteRow(this)">×</td>
         `;
-        tbody.appendChild(row);
-        calculateTotal();
-    }
 
-    function deleteRow(btn) {
-        btn.parentElement.remove();
-        calculateTotal();
-    }
+    tbody.appendChild(row);
 
-    function updatePrice(select) {
-        const price = select.options[select.selectedIndex].getAttribute('data-price');
-        select.closest('tr').querySelector('.price-display').value = price;
-        calculateTotal();
-    }
+    select.selectedIndex = 0;
 
-    function calculateTotal() {
-        let subtotal = 0;
-        const rows = document.querySelectorAll('#items-body tr');
+    calculateTotal();
+  }
 
-        rows.forEach(row => {
-            const price = parseFloat(row.querySelector('.price-display').value);
-            const qty = parseInt(row.querySelector('.qty-input').value);
-            const lineTotal = price * qty;
-            
-            row.querySelector('.row-total').innerText = "₹" + lineTotal;
-            subtotal = subtotal + lineTotal;
-        });
+  function deleteRow(btn) {
+    btn.parentElement.remove();
+    calculateTotal();
+  }
 
-        const taxRate = parseFloat(document.getElementById('tax_rate').value);
-        const taxAmount = subtotal * (taxRate / 100);
-        const finalTotal = subtotal + taxAmount;
+  function calculateTotal() {
+    let subtotal = 0;
+    const rows = document.querySelectorAll("#items-body tr");
 
-        document.getElementById('display-subtotal').innerText = "₹" + subtotal;
-        document.getElementById('display-tax').innerText = "₹" + taxAmount.toFixed(2);
-        document.getElementById('display-total').innerText = "₹" + finalTotal.toFixed(2);
-    }
+    rows.forEach((row) => {
+      const price = parseFloat(row.querySelector(".price-display").value) || 0;
+      const qty = parseInt(row.querySelector(".qty-input").value) || 1;
+      const lineTotal = price * qty;
 
-    document.getElementById('invoiceForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-
-        const items = [];
-        const rows = document.querySelectorAll('#items-body tr');
-        
-        rows.forEach(row => {
-            items.push({
-                item_id: row.querySelector('.item-select').value,
-                quantity: row.querySelector('.qty-input').value
-            });
-        });
-
-        const dataToSend = {
-            customer_id: document.getElementById('customer_id').value,
-            tax_type: document.getElementById('tax_type').value,
-            tax_rate: document.getElementById('tax_rate').value,
-            items: items
-        };
-
-        const response = await fetch('/api/invoices', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dataToSend)
-        });
-
-        if (response.ok) {
-            alert("Draft Invoice Saved");
-            window.location.href = "/invoices";
-        } else {
-            alert("error: Check the console");
-        }
+      row.querySelector(".row-total").innerText = "₹" + lineTotal;
+      subtotal = subtotal + lineTotal;
     });
 
-    window.onload = function() {
-        setTimeout(addItemRow, 500);
-    }
+    const taxRate = parseFloat(document.getElementById("tax_rate").value) || 0;
+    const taxAmount = subtotal * (taxRate / 100);
+    const finalTotal = subtotal + taxAmount;
+
+    document.getElementById("display-subtotal").innerText = "₹" + subtotal;
+    document.getElementById("display-tax").innerText =
+      "₹" + taxAmount.toFixed(2);
+    document.getElementById("display-total").innerText =
+      "₹" + finalTotal.toFixed(2);
+  }
+
+  document
+    .getElementById("invoiceForm")
+    .addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const items = [];
+      const rows = document.querySelectorAll("#items-body tr");
+
+      if (rows.length === 0) {
+        alert("Add item first.");
+        return;
+      }
+
+      rows.forEach((row) => {
+        items.push({
+          item_id: row.querySelector(".item-id-input").value,
+          quantity: row.querySelector(".qty-input").value,
+        });
+      });
+
+      const dataToSend = {
+        customer_id: document.getElementById("customer_id").value,
+        tax_type: document.getElementById("tax_type").value,
+        tax_rate: document.getElementById("tax_rate").value,
+        items: items,
+      };
+
+      const response = await fetch("/api/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dataToSend),
+      });
+
+      if (response.ok) {
+        window.location.href = "/invoices";
+      } else {
+        alert("API connection failed.");
+      }
+    });
 </script>
 {% endblock %}
